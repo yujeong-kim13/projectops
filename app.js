@@ -1,122 +1,478 @@
 const STORAGE_KEY = "projectops.projects.v1";
 
-const form = document.getElementById("project-form");
-const list = document.getElementById("project-list");
-const template = document.getElementById("project-item-template");
+const PROJECT_STATUS = ["계획", "진행중", "위험", "완료", "보류"];
+
+const elements = {
+  form: document.getElementById("project-form"),
+  projectId: document.getElementById("project-id"),
+  name: document.getElementById("project-name"),
+  type: document.getElementById("project-type"),
+  clientName: document.getElementById("client-name"),
+  pm: document.getElementById("project-pm"),
+  members: document.getElementById("project-members"),
+  startDate: document.getElementById("start-date"),
+  endDate: document.getElementById("end-date"),
+  plannedManmonths: document.getElementById("planned-manmonths"),
+  contractManmonths: document.getElementById("contract-manmonths"),
+  usedManmonths: document.getElementById("used-manmonths"),
+  expectedManmonths: document.getElementById("expected-manmonths"),
+  progress: document.getElementById("project-progress"),
+  progressValue: document.getElementById("progress-value"),
+  status: document.getElementById("project-status"),
+  risk: document.getElementById("project-risk"),
+  memo: document.getElementById("project-memo"),
+  formHelp: document.getElementById("form-help"),
+  saveBtn: document.getElementById("save-btn"),
+  resetFormBtn: document.getElementById("reset-form-btn"),
+  summaryBox: document.getElementById("summary-box"),
+  typeFilter: document.getElementById("type-filter"),
+  statusFilter: document.getElementById("status-filter"),
+  list: document.getElementById("project-list"),
+  projectCardTemplate: document.getElementById("project-card-template"),
+  detailEmpty: document.getElementById("project-detail-empty"),
+  detail: document.getElementById("project-detail"),
+  detailTitle: document.getElementById("detail-title"),
+  detailType: document.getElementById("detail-type"),
+  detailPeriod: document.getElementById("detail-period"),
+  detailOwner: document.getElementById("detail-owner"),
+  detailMembers: document.getElementById("detail-members"),
+  detailManmonths: document.getElementById("detail-manmonths"),
+  detailProgressValue: document.getElementById("detail-progress-value"),
+  detailProgressBar: document.getElementById("detail-progress-bar"),
+  detailStatus: document.getElementById("detail-status"),
+  detailRisk: document.getElementById("detail-risk"),
+  detailMemo: document.getElementById("detail-memo"),
+  detailUpdated: document.getElementById("detail-updated"),
+  deleteBtn: document.getElementById("delete-project-btn"),
+  updateForm: document.getElementById("update-form"),
+  updateDate: document.getElementById("update-date"),
+  updateAuthor: document.getElementById("update-author"),
+  updateContent: document.getElementById("update-content"),
+  updateNextPlan: document.getElementById("update-next-plan"),
+  updateRisk: document.getElementById("update-risk"),
+  updateProgress: document.getElementById("update-progress"),
+  updateProgressValue: document.getElementById("update-progress-value"),
+  updateList: document.getElementById("update-list"),
+  updateTemplate: document.getElementById("update-item-template"),
+};
+
+const demoProject = {
+  id: crypto.randomUUID(),
+  name: "2026 AI 기반 분석 대시보드 고도화",
+  type: "고객사",
+  clientName: "한빛시스템",
+  pm: "김유정",
+  members: ["박민수", "이도현", "최유진"],
+  startDate: "2026-06-01",
+  endDate: "2026-08-31",
+  plannedManmonths: 14,
+  contractManmonths: 16,
+  usedManmonths: 4,
+  expectedManmonths: 15,
+  progress: 28,
+  status: "진행중",
+  risk: "요구사항 변경이 빈번해 일정 변동 가능성",
+  memo: "1차 산출물은 데이터 적재 파이프라인 안정화 중심",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  updates: [
+    {
+      id: crypto.randomUUID(),
+      date: "2026-05-20",
+      author: "김유정",
+      content: "요구사항 정리 완료 후 분석 모델 연결 구조 확정",
+      nextPlan: "데이터 검증 자동화 스크립트 작성",
+      riskIssue: "로그 샘플 노이즈 높음",
+      progress: 28,
+      createdAt: new Date().toISOString(),
+    },
+  ],
+};
 
 let projects = loadProjects();
-render();
+let selectedProjectId = null;
 
-form.addEventListener("submit", (event) => {
+if (projects.length === 0) {
+  projects = [demoProject];
+  persistProjects();
+}
+
+initDefaults();
+renderAll();
+
+elements.form.addEventListener("submit", onSaveProject);
+elements.resetFormBtn.addEventListener("click", resetForm);
+elements.type.addEventListener("change", syncClientField);
+elements.progress.addEventListener("input", () => syncProgressLabel(elements.progress, elements.progressValue));
+elements.updateProgress.addEventListener("input", () => {
+  elements.updateProgressValue.textContent = `${elements.updateProgress.value}%`;
+});
+elements.typeFilter.addEventListener("change", renderList);
+elements.statusFilter.addEventListener("change", renderList);
+elements.updateForm.addEventListener("submit", onSaveUpdate);
+elements.deleteBtn.addEventListener("click", onDeleteProject);
+
+function initDefaults() {
+  const today = new Date().toISOString().slice(0, 10);
+  elements.updateDate.value = today;
+  syncClientField();
+  syncProgressLabel(elements.progress, elements.progressValue);
+}
+
+function syncClientField() {
+  elements.clientName.required = elements.type.value === "고객사";
+}
+
+function syncProgressLabel(input, target) {
+  target.textContent = `${input.value}%`;
+}
+
+function getNextId() {
+  return crypto.randomUUID();
+}
+
+function makeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function today() {
+  return new Date().toISOString();
+}
+
+function onSaveProject(event) {
   event.preventDefault();
 
-  const data = new FormData(form);
-  const name = String(data.get("name") || "").trim();
-  const owner = String(data.get("owner") || "").trim();
-  const startDate = String(data.get("startDate") || "");
-  const dueDate = String(data.get("dueDate") || "");
-  const description = String(data.get("description") || "").trim();
+  const formData = {
+    id: elements.projectId.value || getNextId(),
+    name: elements.name.value.trim(),
+    type: elements.type.value,
+    clientName: elements.clientName.value.trim(),
+    pm: elements.pm.value.trim(),
+    members: splitCsv(elements.members.value),
+    startDate: elements.startDate.value,
+    endDate: elements.endDate.value,
+    plannedManmonths: makeNumber(elements.plannedManmonths.value),
+    contractManmonths: makeNumber(elements.contractManmonths.value),
+    usedManmonths: makeNumber(elements.usedManmonths.value),
+    expectedManmonths: makeNumber(elements.expectedManmonths.value),
+    progress: Number(elements.progress.value),
+    status: elements.status.value,
+    risk: elements.risk.value.trim(),
+    memo: elements.memo.value.trim(),
+    updatedAt: today(),
+  };
 
-  if (!name || !owner || !startDate || !dueDate) {
+  if (!formData.name || !formData.pm || !formData.startDate || !formData.endDate) {
     return;
   }
 
-  projects.unshift({
-    id: crypto.randomUUID(),
-    name,
-    owner,
-    startDate,
-    dueDate,
-    description,
-    progress: 0,
-    status: "대기",
-    memo: "",
-    updatedAt: new Date().toISOString(),
+  if (formData.type === "고객사" && !formData.clientName) {
+    alert("고객사 유형에서는 고객사명을 입력해야 합니다.");
+    return;
+  }
+
+  const isEdit = Boolean(projects.find((p) => p.id === formData.id));
+
+  if (isEdit) {
+    const idx = projects.findIndex((p) => p.id === formData.id);
+    projects[idx] = {
+      ...projects[idx],
+      ...formData,
+      createdAt: projects[idx].createdAt,
+      updates: projects[idx].updates || [],
+    };
+  } else {
+    projects.unshift({
+      ...formData,
+      createdAt: today(),
+      updates: [],
+    });
+  }
+
+  persistProjects();
+  resetForm();
+  renderAll();
+}
+
+function onSaveUpdate(event) {
+  event.preventDefault();
+
+  if (!selectedProjectId) {
+    return;
+  }
+
+  const project = projects.find((item) => item.id === selectedProjectId);
+  if (!project) {
+    return;
+  }
+
+  const update = {
+    id: getNextId(),
+    date: elements.updateDate.value,
+    author: elements.updateAuthor.value.trim(),
+    content: elements.updateContent.value.trim(),
+    nextPlan: elements.updateNextPlan.value.trim(),
+    riskIssue: elements.updateRisk.value.trim(),
+    progress: Number(elements.updateProgress.value),
+    createdAt: today(),
+  };
+
+  if (!update.date || !update.author || !update.content) {
+    return;
+  }
+
+  project.updates.unshift(update);
+  project.progress = update.progress;
+  project.updatedAt = today();
+  persistProjects();
+  renderProjectDetail(project);
+  elements.updateForm.reset();
+  const now = new Date().toISOString().slice(0, 10);
+  elements.updateDate.value = now;
+  syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
+}
+
+function onDeleteProject() {
+  if (!selectedProjectId) {
+    return;
+  }
+
+  const target = projects.find((p) => p.id === selectedProjectId);
+  if (!target) {
+    return;
+  }
+
+  if (!window.confirm(`\"${target.name}\" 프로젝트를 삭제하시겠습니까?`)) {
+    return;
+  }
+
+  projects = projects.filter((p) => p.id !== selectedProjectId);
+  selectedProjectId = null;
+  persistProjects();
+  renderAll();
+  resetDetail();
+}
+
+function renderAll() {
+  renderSummary();
+  renderList();
+  renderProjectDetail(getSelectedProject());
+}
+
+function renderSummary() {
+  const total = projects.length;
+  const client = projects.filter((p) => p.type === "고객사").length;
+  const internal = projects.filter((p) => p.type === "사내").length;
+  const risk = projects.filter((p) => p.status === "위험").length;
+  const totalManmonths = projects.reduce((acc, p) => acc + makeNumber(p.contractManmonths), 0);
+
+  elements.summaryBox.innerHTML = `
+    <span>총 프로젝트: ${total}</span>
+    <span>고객사: ${client}</span>
+    <span>사내: ${internal}</span>
+    <span>위험 상태: ${risk}</span>
+    <span>계약 맨먼스: ${totalManmonths.toFixed(1)}</span>
+  `;
+}
+
+function renderList() {
+  const typeFilter = elements.typeFilter.value;
+  const statusFilter = elements.statusFilter.value;
+  const filtered = projects.filter((project) => {
+    if (typeFilter && project.type !== typeFilter) {
+      return false;
+    }
+    if (statusFilter && project.status !== statusFilter) {
+      return false;
+    }
+    return true;
   });
 
-  persist();
-  form.reset();
-  render();
-});
+  elements.list.innerHTML = "";
 
-function render() {
-  list.innerHTML = "";
-
-  if (projects.length === 0) {
-    const empty = document.createElement("p");
-    empty.textContent = "등록된 프로젝트가 없습니다.";
-    list.appendChild(empty);
+  if (filtered.length === 0) {
+    elements.list.innerHTML = "<p class=\"empty-state\">조건에 맞는 프로젝트가 없습니다.</p>";
     return;
   }
 
-  for (const project of projects) {
-    const node = template.content.firstElementChild.cloneNode(true);
+  const sorted = [...filtered].sort((a, b) => {
+    return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+  });
 
-    node.querySelector(".title").textContent = project.name;
-    node.querySelector(".owner").textContent = `담당: ${project.owner}`;
-    node.querySelector(".period").textContent = `${project.startDate} ~ ${project.dueDate}`;
-    node.querySelector(".description").textContent = project.description || "설명 없음";
+  for (const project of sorted) {
+    const node = elements.projectCardTemplate.content.firstElementChild.cloneNode(true);
+    node.querySelector(".pc-title").textContent = project.name;
+    node.querySelector(".chip").textContent = project.type;
+    const clientText = project.type === "고객사" ? `고객사: ${project.clientName || "-"}` : "사내 프로젝트";
+    node.querySelector(".pc-client").textContent = clientText;
+    node.querySelector(".pc-period").textContent = `기간: ${project.startDate} ~ ${project.endDate}`;
+    node.querySelector(".pc-members").textContent = `PM: ${project.pm} / 참여: ${project.members.join(", ") || "-"}`;
+    node.querySelector(".pc-manmonths").textContent = `계획/계약 맨먼스: ${project.plannedManmonths} / ${project.contractManmonths}`;
+    node.querySelector(".pc-progress-val").textContent = `${project.progress}%`;
+    node.querySelector(".pc-progress-bar").style.width = `${project.progress}%`;
 
-    const progress = node.querySelector(".progress");
-    const percent = node.querySelector(".percent");
-    progress.value = String(project.progress);
-    percent.textContent = `${project.progress}%`;
-
-    progress.addEventListener("input", () => {
-      percent.textContent = `${progress.value}%`;
+    const selectBtn = node.querySelector(".select-btn");
+    const editBtn = node.querySelector(".edit-btn");
+    selectBtn.addEventListener("click", () => {
+      selectedProjectId = project.id;
+      renderProjectDetail(project);
     });
 
-    const status = node.querySelector(".status");
-    status.value = project.status;
-
-    const memo = node.querySelector(".memo");
-    memo.value = project.memo || "";
-
-    const updatedAt = node.querySelector(".updated-at");
-    updatedAt.textContent = `마지막 업데이트: ${formatDate(project.updatedAt)}`;
-
-    node.querySelector(".save-update").addEventListener("click", () => {
-      const target = projects.find((item) => item.id === project.id);
-      if (!target) {
-        return;
-      }
-
-      target.progress = Number(progress.value);
-      target.status = status.value;
-      target.memo = memo.value.trim();
-      target.updatedAt = new Date().toISOString();
-      persist();
-      render();
+    editBtn.addEventListener("click", () => {
+      selectedProjectId = project.id;
+      fillFormForEdit(project);
+      renderProjectDetail(project);
     });
 
-    list.appendChild(node);
+    elements.list.appendChild(node);
   }
 }
 
-function loadProjects() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+function renderProjectDetail(project) {
+  if (!project) {
+    selectedProjectId = null;
+    resetDetail();
+    return;
+  }
+
+  elements.detailEmpty.classList.add("hidden");
+  elements.detail.classList.remove("hidden");
+
+  elements.detailTitle.textContent = project.name;
+  elements.detailType.textContent = `${project.type} / 상태: ${project.status}`;
+  elements.detailPeriod.textContent = `기간: ${project.startDate} ~ ${project.endDate}`;
+  elements.detailOwner.textContent = `PM: ${project.pm}`;
+  elements.detailMembers.textContent = `참여 인력: ${project.members.join(", ") || "미정"}`;
+  elements.detailManmonths.textContent = `계획/계약/사용/예상: ${project.plannedManmonths} / ${project.contractManmonths} / ${project.usedManmonths} / ${project.expectedManmonths}`;
+  elements.detailProgressValue.textContent = `${project.progress}%`;
+  elements.detailProgressBar.style.width = `${project.progress}%`;
+  elements.detailStatus.textContent = `위험/메모: ${project.risk || "-"}`;
+  elements.detailRisk.textContent = `리스크: ${project.risk || "-"}`;
+  elements.detailMemo.textContent = `메모: ${project.memo || "-"}`;
+  elements.detailUpdated.textContent = `최종 수정: ${formatDateTime(project.updatedAt || project.createdAt)}`;
+
+  elements.updateAuthor.value = project.pm;
+  elements.updateDate.value = new Date().toISOString().slice(0, 10);
+
+  renderUpdates(project);
+  syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
+
+  elements.saveBtn.textContent = "프로젝트 수정 완료";
+  elements.formHelp.textContent = "수정 모드";
+  elements.projectId.value = project.id;
+}
+
+function renderUpdates(project) {
+  elements.updateList.innerHTML = "";
+
+  if (!project.updates || project.updates.length === 0) {
+    elements.updateList.innerHTML = "<p class=\"empty-state\">아직 진행사항이 없습니다.</p>";
+    return;
+  }
+
+  for (const update of project.updates) {
+    const item = elements.updateTemplate.content.firstElementChild.cloneNode(true);
+    item.querySelector(".update-title").textContent = `${update.author} / 진척률 ${update.progress}%`;
+    item.querySelector(".update-date").textContent = formatDate(update.date);
+    item.querySelector(".update-content").textContent = `이번 내용: ${update.content}`;
+    item.querySelector(".update-next").textContent = `다음 계획: ${update.nextPlan || "-"}`;
+    item.querySelector(".update-risk").textContent = `이슈/리스크: ${update.riskIssue || "-"}`;
+    item.querySelector(".update-progress").textContent = `변경 반영 진척률: ${update.progress}%`;
+    elements.updateList.appendChild(item);
+  }
+}
+
+function fillFormForEdit(project) {
+  elements.projectId.value = project.id;
+  elements.name.value = project.name;
+  elements.type.value = project.type;
+  elements.clientName.value = project.clientName || "";
+  elements.pm.value = project.pm;
+  elements.members.value = (project.members || []).join(", ");
+  elements.startDate.value = project.startDate;
+  elements.endDate.value = project.endDate;
+  elements.plannedManmonths.value = String(project.plannedManmonths);
+  elements.contractManmonths.value = String(project.contractManmonths);
+  elements.usedManmonths.value = String(project.usedManmonths);
+  elements.expectedManmonths.value = String(project.expectedManmonths);
+  elements.progress.value = String(project.progress);
+  elements.status.value = project.status;
+  elements.risk.value = project.risk || "";
+  elements.memo.value = project.memo || "";
+  elements.formHelp.textContent = "수정 모드";
+  syncClientField();
+  syncProgressLabel(elements.progress, elements.progressValue);
+  elements.saveBtn.textContent = "수정 저장";
+  elements.projectId.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetForm() {
+  elements.form.reset();
+  elements.projectId.value = "";
+  elements.formHelp.textContent = "등록 모드";
+  elements.saveBtn.textContent = "프로젝트 저장";
+  initDefaults();
+}
+
+function resetDetail() {
+  elements.detailEmpty.classList.remove("hidden");
+  elements.detail.classList.add("hidden");
+  elements.updateList.innerHTML = "";
+  elements.deleteBtn.disabled = false;
+}
+
+function getSelectedProject() {
+  if (!selectedProjectId) {
+    return null;
+  }
+  return projects.find((p) => p.id === selectedProjectId) || null;
+}
+
+function splitCsv(value) {
+  if (!value) {
     return [];
   }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-function persist() {
+function persistProjects() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }
 
-function formatDate(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
+function loadProjects() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function formatDate(value) {
+  if (!value) {
     return "-";
   }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("ko-KR").format(d);
+}
 
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return value;
+  }
   return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(d);
 }
