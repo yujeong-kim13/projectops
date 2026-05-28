@@ -11,9 +11,9 @@ const VIEW_TO_PANEL = {
 const VIEW_TO_NAV = {
   list: "list",
   detail: "list",
-  create: "create",
-  edit: "create",
-  update: "update",
+  create: "list",
+  edit: "list",
+  update: "list",
 };
 const FORM_MODE = {
   CREATE: "create",
