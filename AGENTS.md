@@ -32,3 +32,14 @@ If the browser may have cached old assets, mention a hard refresh or cache-busti
 - 백엔드 개발자 owns backend/data/API implementation.
 - 프런트엔드개발자 owns UI/frontend implementation.
 - 대표이사 does not implement code or deploy; 대표이사 only approves, prioritizes, hires, or delegates.
+
+## Automatic Routing
+
+ProjectOps implementation work must be routed by role.
+
+- 대표이사 does not implement, commit, push, or deploy. 대표이사 only prioritizes, approves, hires, or delegates.
+- 기술이사 does not implement by default. 기술이사 decomposes, routes, reviews, and accepts.
+- 프런트엔드개발자 owns UI, navigation, forms, cards, CSS, browser behavior, accessibility, and frontend state changes.
+- 백엔드 개발자 owns API, data model, persistence, server logic, authentication, and backend tests.
+
+If a ProjectOps implementation issue is assigned to 기술이사, 기술이사의 first action must be to create or assign implementation work to 프런트엔드개발자 and/or 백엔드 개발자. 기술이사 may only implement directly if no suitable implementation agent is available or there is an urgent operational fix.
