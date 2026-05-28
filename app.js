@@ -8,6 +8,13 @@ const VIEW_TO_PANEL = {
   edit: "create",
   update: "update",
 };
+const VIEW_TO_NAV = {
+  list: "list",
+  detail: "list",
+  create: "create",
+  edit: "create",
+  update: "update",
+};
 const FORM_MODE = {
   CREATE: "create",
   EDIT: "edit",
@@ -22,7 +29,7 @@ const getSafeId = () => {
 };
 
 const elements = {
-  navTabs: Array.from(document.querySelectorAll(".tab-btn")),
+  navTabs: Array.from(document.querySelectorAll(".nav-btn")),
   viewPanels: Array.from(document.querySelectorAll("[data-view-panel]")),
   form: document.getElementById("project-form"),
   projectId: document.getElementById("project-id"),
@@ -70,6 +77,7 @@ const elements = {
   openDetailBtn: document.getElementById("open-detail-btn"),
   deleteBtn: document.getElementById("delete-project-btn"),
   projectSearch: document.getElementById("project-search"),
+  openCreateBtn: document.getElementById("open-create-btn"),
   updateForm: document.getElementById("update-form"),
   updateDate: document.getElementById("update-date"),
   updateAuthor: document.getElementById("update-author"),
@@ -145,6 +153,7 @@ elements.deleteBtn.addEventListener("click", onDeleteProject);
 elements.openEditBtn.addEventListener("click", () => setView("edit"));
 elements.openUpdateBtn.addEventListener("click", () => setView("update"));
 elements.openDetailBtn.addEventListener("click", () => setView("detail"));
+elements.openCreateBtn.addEventListener("click", () => setView("create"));
 elements.navTabs.forEach((tab) => {
   tab.addEventListener("click", () => setView(tab.dataset.view || "list"));
 });
@@ -373,7 +382,7 @@ function renderList() {
 
     const selectBtn = node.querySelector(".select-btn");
     const editBtn = node.querySelector(".edit-btn");
-    const deleteBtn = node.querySelector(".delete-btn");
+    const updateBtn = node.querySelector(".update-btn");
     selectBtn.addEventListener("click", () => {
       selectedProjectId = project.id;
       renderProjectDetail(project);
@@ -385,21 +394,10 @@ function renderList() {
       fillFormForEdit(project);
     });
 
-    deleteBtn.addEventListener("click", () => {
-      if (!window.confirm(`\"${project.name}\" 프로젝트를 삭제하시겠습니까?`)) {
-        return;
-      }
-      projects = projects.filter((item) => item.id !== project.id);
-      if (selectedProjectId === project.id) {
-        selectedProjectId = null;
-      }
-      persistProjects();
-      renderAll();
-      if (currentView === "detail" || currentView === "edit" || currentView === "update") {
-        setView("list");
-      } else {
-        renderList();
-      }
+    updateBtn.addEventListener("click", () => {
+      selectedProjectId = project.id;
+      renderProjectDetail(project);
+      setView("update");
     });
 
     elements.list.appendChild(node);
@@ -528,10 +526,11 @@ function syncUpdateFormState() {
 
 function setView(view) {
   const resolvedPanel = VIEW_TO_PANEL[view] || "list";
+  const navView = VIEW_TO_NAV[view] || "list";
   currentView = view;
 
   elements.navTabs.forEach((tab) => {
-    const active = tab.dataset.view === view;
+    const active = tab.dataset.view === navView;
     tab.classList.toggle("is-active", active);
     tab.setAttribute("aria-current", active ? "page" : "false");
   });
