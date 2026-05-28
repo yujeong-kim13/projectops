@@ -1,6 +1,17 @@
 const STORAGE_KEY = "projectops.projects.v1";
 
 const PROJECT_STATUS = ["계획", "진행중", "위험", "완료", "보류"];
+const VIEW_TO_PANEL = {
+  list: "list",
+  create: "create",
+  detail: "detail",
+  edit: "create",
+  update: "update",
+};
+const FORM_MODE = {
+  CREATE: "create",
+  EDIT: "edit",
+};
 
 const elements = {
   navTabs: Array.from(document.querySelectorAll(".tab-btn")),
@@ -26,6 +37,7 @@ const elements = {
   formHelp: document.getElementById("form-help"),
   saveBtn: document.getElementById("save-btn"),
   resetFormBtn: document.getElementById("reset-form-btn"),
+  projectFormTitle: document.getElementById("project-form-title"),
   summaryBox: document.getElementById("summary-box"),
   typeFilter: document.getElementById("type-filter"),
   statusFilter: document.getElementById("status-filter"),
@@ -45,7 +57,11 @@ const elements = {
   detailRisk: document.getElementById("detail-risk"),
   detailMemo: document.getElementById("detail-memo"),
   detailUpdated: document.getElementById("detail-updated"),
+  openEditBtn: document.getElementById("open-edit-btn"),
+  openUpdateBtn: document.getElementById("open-update-btn"),
+  openDetailBtn: document.getElementById("open-detail-btn"),
   deleteBtn: document.getElementById("delete-project-btn"),
+  projectSearch: document.getElementById("project-search"),
   updateForm: document.getElementById("update-form"),
   updateDate: document.getElementById("update-date"),
   updateAuthor: document.getElementById("update-author"),
@@ -54,6 +70,7 @@ const elements = {
   updateRisk: document.getElementById("update-risk"),
   updateProgress: document.getElementById("update-progress"),
   updateProgressValue: document.getElementById("update-progress-value"),
+  updateEmpty: document.getElementById("update-empty"),
   updateList: document.getElementById("update-list"),
   updateTemplate: document.getElementById("update-item-template"),
 };
@@ -93,7 +110,8 @@ const demoProject = {
 
 let projects = loadProjects();
 let selectedProjectId = null;
-let currentView = "form";
+let currentView = "list";
+let formMode = FORM_MODE.CREATE;
 
 if (projects.length === 0) {
   projects = [demoProject];
@@ -105,18 +123,22 @@ renderAll();
 setView(currentView);
 
 elements.form.addEventListener("submit", onSaveProject);
-elements.resetFormBtn.addEventListener("click", resetForm);
+elements.resetFormBtn.addEventListener("click", resetProjectForm);
 elements.type.addEventListener("change", syncClientField);
 elements.progress.addEventListener("input", () => syncProgressLabel(elements.progress, elements.progressValue));
 elements.updateProgress.addEventListener("input", () => {
   elements.updateProgressValue.textContent = `${elements.updateProgress.value}%`;
 });
 elements.typeFilter.addEventListener("change", renderList);
+elements.projectSearch.addEventListener("input", renderList);
 elements.statusFilter.addEventListener("change", renderList);
 elements.updateForm.addEventListener("submit", onSaveUpdate);
 elements.deleteBtn.addEventListener("click", onDeleteProject);
+elements.openEditBtn.addEventListener("click", () => setView("edit"));
+elements.openUpdateBtn.addEventListener("click", () => setView("update"));
+elements.openDetailBtn.addEventListener("click", () => setView("detail"));
 elements.navTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setView(tab.dataset.view || "form"));
+  tab.addEventListener("click", () => setView(tab.dataset.view || "list"));
 });
 
 function initDefaults() {
@@ -179,15 +201,16 @@ function onSaveProject(event) {
     return;
   }
 
-  const isEdit = Boolean(projects.find((p) => p.id === formData.id));
+  const isEdit = formMode === FORM_MODE.EDIT;
+  const targetIdx = projects.findIndex((p) => p.id === formData.id);
+  const shouldEdit = isEdit && targetIdx > -1;
 
-  if (isEdit) {
-    const idx = projects.findIndex((p) => p.id === formData.id);
-    projects[idx] = {
-      ...projects[idx],
+  if (shouldEdit) {
+    projects[targetIdx] = {
+      ...projects[targetIdx],
       ...formData,
-      createdAt: projects[idx].createdAt,
-      updates: projects[idx].updates || [],
+      createdAt: projects[targetIdx].createdAt,
+      updates: projects[targetIdx].updates || [],
     };
   } else {
     projects.unshift({
@@ -198,15 +221,17 @@ function onSaveProject(event) {
   }
 
   persistProjects();
-  resetForm();
+  selectedProjectId = shouldEdit ? formData.id : projects[0].id;
+  resetProjectForm();
   renderAll();
-  setView("list");
+  setView(isEdit ? "detail" : "list");
 }
 
 function onSaveUpdate(event) {
   event.preventDefault();
 
   if (!selectedProjectId) {
+    setView("list");
     return;
   }
 
@@ -235,10 +260,10 @@ function onSaveUpdate(event) {
   project.updatedAt = today();
   persistProjects();
   renderProjectDetail(project);
+  syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
   elements.updateForm.reset();
   const now = new Date().toISOString().slice(0, 10);
   elements.updateDate.value = now;
-  syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
   setView("detail");
 }
 
@@ -289,12 +314,28 @@ function renderSummary() {
 function renderList() {
   const typeFilter = elements.typeFilter.value;
   const statusFilter = elements.statusFilter.value;
+  const searchText = (elements.projectSearch.value || "").trim().toLowerCase();
   const filtered = projects.filter((project) => {
     if (typeFilter && project.type !== typeFilter) {
       return false;
     }
     if (statusFilter && project.status !== statusFilter) {
       return false;
+    }
+    if (searchText) {
+      const searchable = [
+        project.name,
+        project.pm,
+        project.clientName,
+        (project.members || []).join(" "),
+        project.memo,
+        project.risk,
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(searchText)) {
+        return false;
+      }
     }
     return true;
   });
@@ -324,15 +365,33 @@ function renderList() {
 
     const selectBtn = node.querySelector(".select-btn");
     const editBtn = node.querySelector(".edit-btn");
+    const deleteBtn = node.querySelector(".delete-btn");
     selectBtn.addEventListener("click", () => {
       selectedProjectId = project.id;
       renderProjectDetail(project);
+      setView("detail");
     });
 
     editBtn.addEventListener("click", () => {
       selectedProjectId = project.id;
       fillFormForEdit(project);
-      renderProjectDetail(project);
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      if (!window.confirm(`\"${project.name}\" 프로젝트를 삭제하시겠습니까?`)) {
+        return;
+      }
+      projects = projects.filter((item) => item.id !== project.id);
+      if (selectedProjectId === project.id) {
+        selectedProjectId = null;
+      }
+      persistProjects();
+      renderAll();
+      if (currentView === "detail" || currentView === "edit" || currentView === "update") {
+        setView("list");
+      } else {
+        renderList();
+      }
     });
 
     elements.list.appendChild(node);
@@ -354,23 +413,21 @@ function renderProjectDetail(project) {
   elements.detailPeriod.textContent = `기간: ${project.startDate} ~ ${project.endDate}`;
   elements.detailOwner.textContent = `PM: ${project.pm}`;
   elements.detailMembers.textContent = `참여 인력: ${project.members.join(", ") || "미정"}`;
-  elements.detailManmonths.textContent = `계획/계약/사용/예상: ${project.plannedManmonths} / ${project.contractManmonths} / ${project.usedManmonths} / ${project.expectedManmonths}`;
+  elements.detailManmonths.textContent = `계획/계약/사용/예상 맨먼스: ${project.plannedManmonths} / ${project.contractManmonths} / ${project.usedManmonths} / ${project.expectedManmonths}`;
   elements.detailProgressValue.textContent = `${project.progress}%`;
   elements.detailProgressBar.style.width = `${project.progress}%`;
-  elements.detailStatus.textContent = `위험/메모: ${project.risk || "-"}`;
+  elements.detailStatus.textContent = `상태: ${project.status}`;
   elements.detailRisk.textContent = `리스크: ${project.risk || "-"}`;
   elements.detailMemo.textContent = `메모: ${project.memo || "-"}`;
   elements.detailUpdated.textContent = `최종 수정: ${formatDateTime(project.updatedAt || project.createdAt)}`;
 
   elements.updateAuthor.value = project.pm;
   elements.updateDate.value = new Date().toISOString().slice(0, 10);
+  elements.openEditBtn.disabled = false;
+  elements.openUpdateBtn.disabled = false;
 
   renderUpdates(project);
-  syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
-
-  elements.saveBtn.textContent = "프로젝트 수정 완료";
-  elements.formHelp.textContent = "수정 모드";
-  elements.projectId.value = project.id;
+  syncUpdateFormState();
 }
 
 function renderUpdates(project) {
@@ -394,6 +451,17 @@ function renderUpdates(project) {
 }
 
 function fillFormForEdit(project) {
+  if (!project) {
+    return;
+  }
+  selectedProjectId = project.id;
+  setProjectFormValues(project);
+  setFormMode(FORM_MODE.EDIT);
+  elements.projectId.scrollIntoView({ behavior: "smooth", block: "start" });
+  setView("edit");
+}
+
+function setProjectFormValues(project) {
   elements.projectId.value = project.id;
   elements.name.value = project.name;
   elements.type.value = project.type;
@@ -410,19 +478,22 @@ function fillFormForEdit(project) {
   elements.status.value = project.status;
   elements.risk.value = project.risk || "";
   elements.memo.value = project.memo || "";
-  elements.formHelp.textContent = "수정 모드";
   syncClientField();
   syncProgressLabel(elements.progress, elements.progressValue);
-  elements.saveBtn.textContent = "수정 저장";
-  elements.projectId.scrollIntoView({ behavior: "smooth", block: "start" });
-  setView("form");
 }
 
-function resetForm() {
+function setFormMode(mode) {
+  formMode = mode;
+  const isEdit = mode === FORM_MODE.EDIT;
+  elements.projectFormTitle.textContent = isEdit ? "프로젝트 수정" : "프로젝트 등록";
+  elements.formHelp.textContent = isEdit ? "수정 모드" : "등록 모드";
+  elements.saveBtn.textContent = isEdit ? "수정 저장" : "프로젝트 저장";
+}
+
+function resetProjectForm() {
   elements.form.reset();
   elements.projectId.value = "";
-  elements.formHelp.textContent = "등록 모드";
-  elements.saveBtn.textContent = "프로젝트 저장";
+  setFormMode(FORM_MODE.CREATE);
   initDefaults();
 }
 
@@ -430,20 +501,83 @@ function resetDetail() {
   elements.detailEmpty.classList.remove("hidden");
   elements.detail.classList.add("hidden");
   elements.updateList.innerHTML = "";
-  elements.deleteBtn.disabled = false;
+  elements.openEditBtn.disabled = true;
+  elements.openUpdateBtn.disabled = true;
+  selectedProjectId = null;
+}
+
+function syncUpdateFormState() {
+  const hasProject = Boolean(getSelectedProject());
+  elements.updateEmpty.classList.toggle("hidden", hasProject);
+  elements.updateForm.classList.toggle("hidden", !hasProject);
+  if (hasProject) {
+    elements.updateForm.reset();
+    elements.updateDate.value = new Date().toISOString().slice(0, 10);
+    elements.updateAuthor.value = getSelectedProject()?.pm || "";
+    syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
+  }
 }
 
 function setView(view) {
+  const resolvedPanel = VIEW_TO_PANEL[view] || "list";
   currentView = view;
+
   elements.navTabs.forEach((tab) => {
     const active = tab.dataset.view === view;
     tab.classList.toggle("is-active", active);
     tab.setAttribute("aria-current", active ? "page" : "false");
   });
   elements.viewPanels.forEach((panel) => {
-    const show = panel.dataset.viewPanel === view;
+    const show = panel.dataset.viewPanel === resolvedPanel;
     panel.classList.toggle("hidden", !show);
   });
+
+  if (view === "create") {
+    selectedProjectId = null;
+    setFormMode(FORM_MODE.CREATE);
+    elements.projectId.value = "";
+    elements.form.reset();
+    initDefaults();
+  }
+
+  if (view === "edit") {
+    if (!selectedProjectId) {
+      setView("list");
+      return;
+    }
+    const project = getSelectedProject();
+    if (!project) {
+      setView("list");
+      return;
+    }
+    setProjectFormValues(project);
+    setFormMode(FORM_MODE.EDIT);
+  }
+
+  if (view === "detail") {
+    const project = getSelectedProject();
+    if (!project) {
+      setView("list");
+      return;
+    }
+    renderProjectDetail(project);
+    elements.openUpdateBtn.disabled = false;
+  }
+
+  if (view === "update") {
+    const project = getSelectedProject();
+    if (!project) {
+      setView("list");
+      return;
+    }
+    elements.openUpdateBtn.disabled = false;
+    elements.openDetailBtn.disabled = false;
+    syncUpdateFormState();
+  }
+
+  if (view === "list") {
+    renderList();
+  }
 }
 
 function getSelectedProject() {

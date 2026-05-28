@@ -18,14 +18,16 @@
       </header>
 
       <nav class="nav-tabs" aria-label="프로젝트 메뉴">
-        <button type="button" class="tab-btn is-active" data-view="form">프로젝트 등록/수정</button>
-        <button type="button" class="tab-btn" data-view="list">프로젝트 목록</button>
-        <button type="button" class="tab-btn" data-view="detail">프로젝트 상세/진행</button>
+        <button type="button" class="tab-btn is-active" data-view="list">프로젝트 목록</button>
+        <button type="button" class="tab-btn" data-view="create">프로젝트 등록</button>
+        <button type="button" class="tab-btn" data-view="detail">프로젝트 상세</button>
+        <button type="button" class="tab-btn" data-view="edit">프로젝트 수정</button>
+        <button type="button" class="tab-btn" data-view="update">진행사항 업데이트</button>
       </nav>
 
-      <section class="panel view-panel" data-view-panel="form">
+      <section class="panel view-panel hidden" data-view-panel="create">
         <div class="panel-head">
-          <h2>프로젝트 등록 / 수정</h2>
+          <h2 id="project-form-title">프로젝트 등록</h2>
           <button type="button" class="ghost" id="reset-form-btn">초기화</button>
         </div>
         <form id="project-form" class="grid-form">
@@ -109,10 +111,12 @@
         </form>
       </section>
 
-      <section class="panel view-panel hidden" data-view-panel="list">
+      <section class="panel view-panel" data-view-panel="list">
         <div class="panel-head panel-head--tight">
           <h2>프로젝트 목록</h2>
+          <p class="list-title-note">프로젝트 검색, 유형/상태 필터로 목록을 중심으로 관리합니다.</p>
           <div class="filters">
+            <input id="project-search" type="search" placeholder="프로젝트명/PM/고객사 검색" />
             <select id="type-filter">
               <option value="">유형 전체</option>
               <option value="고객사">고객사</option>
@@ -134,7 +138,11 @@
       <section class="panel view-panel hidden" data-view-panel="detail">
         <div class="panel-head">
           <h2>프로젝트 상세</h2>
-          <button type="button" id="delete-project-btn" class="ghost danger">선택 프로젝트 삭제</button>
+          <div class="actions">
+            <button type="button" id="open-edit-btn" class="ghost">수정 화면 열기</button>
+            <button type="button" id="open-update-btn" class="primary">진행사항 업데이트</button>
+            <button type="button" id="delete-project-btn" class="ghost danger">선택 프로젝트 삭제</button>
+          </div>
         </div>
         <div id="project-detail-empty" class="empty-state">목록에서 프로젝트를 선택하면 상세 정보를 확인하고 진행사항을 기록할 수 있습니다.</div>
         <div id="project-detail" class="hidden">
@@ -158,44 +166,50 @@
             </section>
           </div>
 
-          <div class="update-wrap">
-            <h4>진행사항 업데이트 등록</h4>
-            <form id="update-form" class="grid-form grid-form--small">
-              <label>
-                작성일
-                <input id="update-date" name="updateDate" type="date" required />
-              </label>
-              <label>
-                작성자
-                <input id="update-author" name="author" required placeholder="예: 박민수" />
-              </label>
-              <label class="full">
-                이번 업데이트 내용
-                <textarea id="update-content" name="content" rows="2" placeholder="진행한 핵심 작업" required></textarea>
-              </label>
-              <label class="full">
-                다음 계획
-                <textarea id="update-next-plan" name="nextPlan" rows="2" placeholder="다음 회차 작업"></textarea>
-              </label>
-              <label class="full">
-                이슈/리스크
-                <textarea id="update-risk" name="riskIssue" rows="2" placeholder="발생 이슈 또는 대응 리스크"></textarea>
-              </label>
-              <label>
-                진척률 변경
-                <div class="inline-control">
-                  <input id="update-progress" name="progress" type="range" min="0" max="100" value="0" />
-                  <span id="update-progress-value">0%</span>
-                </div>
-              </label>
-              <div class="actions full">
-                <button type="submit" class="primary">진행사항 저장</button>
-              </div>
-            </form>
-          </div>
-
           <div class="timeline" id="update-list"></div>
         </div>
+      </section>
+
+      <section class="panel view-panel hidden" data-view-panel="update">
+        <div class="panel-head">
+          <h2>진행사항 업데이트</h2>
+          <div class="actions">
+            <button type="button" id="open-detail-btn" class="ghost">상세 화면</button>
+          </div>
+        </div>
+        <div id="update-empty" class="empty-state">프로젝트를 선택하면 진행사항 업데이트를 등록할 수 있습니다.</div>
+        <form id="update-form" class="grid-form grid-form--small hidden">
+          <label>
+            작성일
+            <input id="update-date" name="updateDate" type="date" required />
+          </label>
+          <label>
+            작성자
+            <input id="update-author" name="author" required placeholder="예: 박민수" />
+          </label>
+          <label class="full">
+            이번 업데이트 내용
+            <textarea id="update-content" name="content" rows="2" placeholder="진행한 핵심 작업" required></textarea>
+          </label>
+          <label class="full">
+            다음 계획
+            <textarea id="update-next-plan" name="nextPlan" rows="2" placeholder="다음 회차 작업"></textarea>
+          </label>
+          <label class="full">
+            이슈/리스크
+            <textarea id="update-risk" name="riskIssue" rows="2" placeholder="발생 이슈 또는 대응 리스크"></textarea>
+          </label>
+          <label>
+            진척률 변경
+            <div class="inline-control">
+              <input id="update-progress" name="progress" type="range" min="0" max="100" value="0" />
+              <span id="update-progress-value">0%</span>
+            </div>
+          </label>
+          <div class="actions full">
+            <button type="submit" class="primary">진행사항 저장</button>
+          </div>
+        </form>
       </section>
     </main>
 
@@ -214,6 +228,7 @@
         <div class="pc-actions">
           <button type="button" class="primary select-btn">상세 보기</button>
           <button type="button" class="ghost edit-btn">수정</button>
+          <button type="button" class="ghost danger delete-btn">삭제</button>
         </div>
       </article>
     </template>

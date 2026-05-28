@@ -125,6 +125,18 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.list-title-note {
+  margin: 8px 0 0;
+  color: var(--subtle);
+  font-size: 0.9rem;
+}
+
+#project-search {
+  min-width: 220px;
+  flex: 1;
 }
 
 .grid-form {
@@ -308,6 +320,11 @@ h3 {
   border: 1px dashed var(--line);
   border-radius: 12px;
   padding: 12px;
+}
+
+#project-detail-empty,
+#update-empty {
+  margin-top: 8px;
 }
 
 #detail-title {
