@@ -12,6 +12,14 @@ const FORM_MODE = {
   CREATE: "create",
   EDIT: "edit",
 };
+const getSafeId = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const fallbackSeed = Date.now().toString(36);
+  const fallbackRand = Math.random().toString(36).slice(2, 10);
+  return `id-${fallbackSeed}-${fallbackRand}`;
+};
 
 const elements = {
   navTabs: Array.from(document.querySelectorAll(".tab-btn")),
@@ -76,7 +84,7 @@ const elements = {
 };
 
 const demoProject = {
-  id: crypto.randomUUID(),
+  id: getSafeId(),
   name: "2026 AI 기반 분석 대시보드 고도화",
   type: "고객사",
   clientName: "한빛시스템",
@@ -96,7 +104,7 @@ const demoProject = {
   updatedAt: new Date().toISOString(),
   updates: [
     {
-      id: crypto.randomUUID(),
+      id: getSafeId(),
       date: "2026-05-20",
       author: "김유정",
       content: "요구사항 정리 완료 후 분석 모델 연결 구조 확정",
@@ -157,7 +165,7 @@ function syncProgressLabel(input, target) {
 }
 
 function getNextId() {
-  return crypto.randomUUID();
+  return getSafeId();
 }
 
 function makeNumber(value, fallback = 0) {
@@ -606,8 +614,23 @@ function loadProjects() {
   if (!raw) {
     return [];
   }
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        ...item,
+        members: Array.isArray(item.members) ? item.members : [],
+        updates: Array.isArray(item.updates) ? item.updates : [],
+        progress: Number.isFinite(Number(item.progress)) ? Number(item.progress) : 0,
+      }));
+  } catch {
+    console.warn("Failed to parse project data from localStorage. Resetting saved data.");
+    return [];
+  }
 }
 
 function formatDate(value) {
