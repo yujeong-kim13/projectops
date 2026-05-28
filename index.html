@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ProjectOps</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <h1>ProjectOps 1차</h1>
+        <p>프로젝트 등록 및 진행사항 업데이트</p>
+      </header>
+
+      <section class="panel">
+        <h2>프로젝트 등록</h2>
+        <form id="project-form" class="grid-form">
+          <label>
+            프로젝트명
+            <input id="name" name="name" required placeholder="예: 모바일 앱 리뉴얼" />
+          </label>
+          <label>
+            담당자
+            <input id="owner" name="owner" required placeholder="예: 김유정" />
+          </label>
+          <label>
+            시작일
+            <input id="startDate" name="startDate" type="date" required />
+          </label>
+          <label>
+            종료 예정일
+            <input id="dueDate" name="dueDate" type="date" required />
+          </label>
+          <label class="full">
+            설명
+            <textarea id="description" name="description" rows="3" placeholder="프로젝트 범위와 목표를 입력하세요."></textarea>
+          </label>
+          <button type="submit">등록</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>프로젝트 목록 / 진행사항 업데이트</h2>
+        <div id="project-list" class="project-list"></div>
+      </section>
+    </main>
+
+    <template id="project-item-template">
+      <article class="project-item">
+        <div class="project-head">
+          <h3 class="title"></h3>
+          <span class="owner"></span>
+        </div>
+        <p class="period"></p>
+        <p class="description"></p>
+        <label>
+          진행률: <span class="percent">0%</span>
+          <input class="progress" type="range" min="0" max="100" value="0" />
+        </label>
+        <label>
+          상태
+          <select class="status">
+            <option value="대기">대기</option>
+            <option value="진행중">진행중</option>
+            <option value="검토중">검토중</option>
+            <option value="완료">완료</option>
+          </select>
+        </label>
+        <label>
+          업데이트 메모
+          <input class="memo" placeholder="예: 1차 디자인 시안 완료" />
+        </label>
+        <button class="save-update" type="button">진행사항 저장</button>
+        <p class="updated-at"></p>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
