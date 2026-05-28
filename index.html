@@ -17,7 +17,13 @@
         <div class="summary" id="summary-box"></div>
       </header>
 
-      <section class="panel">
+      <nav class="nav-tabs" aria-label="프로젝트 메뉴">
+        <button type="button" class="tab-btn is-active" data-view="form">프로젝트 등록/수정</button>
+        <button type="button" class="tab-btn" data-view="list">프로젝트 목록</button>
+        <button type="button" class="tab-btn" data-view="detail">프로젝트 상세/진행</button>
+      </nav>
+
+      <section class="panel view-panel" data-view-panel="form">
         <div class="panel-head">
           <h2>프로젝트 등록 / 수정</h2>
           <button type="button" class="ghost" id="reset-form-btn">초기화</button>
@@ -103,7 +109,7 @@
         </form>
       </section>
 
-      <section class="panel">
+      <section class="panel view-panel hidden" data-view-panel="list">
         <div class="panel-head panel-head--tight">
           <h2>프로젝트 목록</h2>
           <div class="filters">
@@ -125,7 +131,7 @@
         <div class="project-list" id="project-list"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel view-panel hidden" data-view-panel="detail">
         <div class="panel-head">
           <h2>프로젝트 상세</h2>
           <button type="button" id="delete-project-btn" class="ghost danger">선택 프로젝트 삭제</button>

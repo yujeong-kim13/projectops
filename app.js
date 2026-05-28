@@ -3,6 +3,8 @@ const STORAGE_KEY = "projectops.projects.v1";
 const PROJECT_STATUS = ["계획", "진행중", "위험", "완료", "보류"];
 
 const elements = {
+  navTabs: Array.from(document.querySelectorAll(".tab-btn")),
+  viewPanels: Array.from(document.querySelectorAll("[data-view-panel]")),
   form: document.getElementById("project-form"),
   projectId: document.getElementById("project-id"),
   name: document.getElementById("project-name"),
@@ -91,6 +93,7 @@ const demoProject = {
 
 let projects = loadProjects();
 let selectedProjectId = null;
+let currentView = "form";
 
 if (projects.length === 0) {
   projects = [demoProject];
@@ -99,6 +102,7 @@ if (projects.length === 0) {
 
 initDefaults();
 renderAll();
+setView(currentView);
 
 elements.form.addEventListener("submit", onSaveProject);
 elements.resetFormBtn.addEventListener("click", resetForm);
@@ -111,6 +115,9 @@ elements.typeFilter.addEventListener("change", renderList);
 elements.statusFilter.addEventListener("change", renderList);
 elements.updateForm.addEventListener("submit", onSaveUpdate);
 elements.deleteBtn.addEventListener("click", onDeleteProject);
+elements.navTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setView(tab.dataset.view || "form"));
+});
 
 function initDefaults() {
   const today = new Date().toISOString().slice(0, 10);
@@ -193,6 +200,7 @@ function onSaveProject(event) {
   persistProjects();
   resetForm();
   renderAll();
+  setView("list");
 }
 
 function onSaveUpdate(event) {
@@ -231,6 +239,7 @@ function onSaveUpdate(event) {
   const now = new Date().toISOString().slice(0, 10);
   elements.updateDate.value = now;
   syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
+  setView("detail");
 }
 
 function onDeleteProject() {
@@ -252,6 +261,7 @@ function onDeleteProject() {
   persistProjects();
   renderAll();
   resetDetail();
+  setView("list");
 }
 
 function renderAll() {
@@ -405,6 +415,7 @@ function fillFormForEdit(project) {
   syncProgressLabel(elements.progress, elements.progressValue);
   elements.saveBtn.textContent = "수정 저장";
   elements.projectId.scrollIntoView({ behavior: "smooth", block: "start" });
+  setView("form");
 }
 
 function resetForm() {
@@ -420,6 +431,19 @@ function resetDetail() {
   elements.detail.classList.add("hidden");
   elements.updateList.innerHTML = "";
   elements.deleteBtn.disabled = false;
+}
+
+function setView(view) {
+  currentView = view;
+  elements.navTabs.forEach((tab) => {
+    const active = tab.dataset.view === view;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-current", active ? "page" : "false");
+  });
+  elements.viewPanels.forEach((panel) => {
+    const show = panel.dataset.viewPanel === view;
+    panel.classList.toggle("hidden", !show);
+  });
 }
 
 function getSelectedProject() {
