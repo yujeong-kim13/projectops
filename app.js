@@ -19,6 +19,9 @@ const VIEW_TO_NAV = {
   update: "list",
   clients: "clients",
 };
+const VIEW_ALIASES = {
+  client: "clients",
+};
 const FORM_MODE = {
   CREATE: "create",
   EDIT: "edit",
@@ -206,7 +209,10 @@ elements.clientSearch.addEventListener("input", renderClients);
 elements.clientStatusFilter.addEventListener("change", renderClients);
 elements.clientIndustryFilter.addEventListener("change", renderClients);
 elements.navTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setView(tab.dataset.view || "list"));
+  tab.addEventListener("click", () => {
+    const requestedView = normalizeView(tab.dataset.view || "list");
+    setView(requestedView);
+  });
 });
 
 function initDefaults() {
@@ -784,9 +790,10 @@ function syncClientOptions() {
 }
 
 function setView(view) {
-  const resolvedPanel = VIEW_TO_PANEL[view] || "list";
-  const navView = VIEW_TO_NAV[view] || "list";
-  currentView = view;
+  const normalizedView = normalizeView(view);
+  const resolvedPanel = VIEW_TO_PANEL[normalizedView] || "list";
+  const navView = VIEW_TO_NAV[normalizedView] || "list";
+  currentView = normalizedView;
 
   elements.navTabs.forEach((tab) => {
     const active = tab.dataset.view === navView;
@@ -798,7 +805,7 @@ function setView(view) {
     panel.classList.toggle("hidden", !show);
   });
 
-  if (view === "create") {
+  if (normalizedView === "create") {
     selectedProjectId = null;
     setFormMode(FORM_MODE.CREATE);
     elements.projectId.value = "";
@@ -806,13 +813,13 @@ function setView(view) {
     initDefaults();
   }
 
-  if (view === "clients") {
+  if (normalizedView === "clients") {
     elements.clientForm.classList.add("hidden");
     setClientFormMode(FORM_MODE.CREATE);
     renderClients();
   }
 
-  if (view === "edit") {
+  if (normalizedView === "edit") {
     if (!selectedProjectId) {
       setView("list");
       return;
@@ -826,7 +833,7 @@ function setView(view) {
     setFormMode(FORM_MODE.EDIT);
   }
 
-  if (view === "detail") {
+  if (normalizedView === "detail") {
     const project = getSelectedProject();
     if (!project) {
       setView("list");
@@ -836,7 +843,7 @@ function setView(view) {
     elements.openUpdateBtn.disabled = false;
   }
 
-  if (view === "update") {
+  if (normalizedView === "update") {
     const project = getSelectedProject();
     if (!project) {
       setView("list");
@@ -850,6 +857,10 @@ function setView(view) {
   if (view === "list") {
     renderList();
   }
+}
+
+function normalizeView(view) {
+  return VIEW_ALIASES[view] || view;
 }
 
 function getSelectedProject() {
