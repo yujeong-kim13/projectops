@@ -492,7 +492,8 @@ function renderAll() {
 }
 
 function renderSummary() {
-  if (!elements.summaryBox) {
+  const summaryBox = document.getElementById("summary-box");
+  if (!summaryBox) {
     return;
   }
   const total = projects.length;
@@ -502,7 +503,7 @@ function renderSummary() {
   const totalManmonths = projects.reduce((acc, p) => acc + makeNumber(p.contractManmonths), 0);
   const activeClient = clients.filter((c) => c.status === "활성").length;
 
-  elements.summaryBox.innerHTML = `
+  summaryBox.innerHTML = `
     <span>총 프로젝트: ${total}</span>
     <span>고객사: ${client}</span>
     <span>사내: ${internal}</span>
