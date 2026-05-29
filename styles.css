@@ -260,6 +260,13 @@ button:hover {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
+.client-list {
+  margin-top: 4px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
 .project-card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -341,6 +348,48 @@ h3 {
 
 .pc-actions button {
   flex: 1;
+}
+
+.client-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
+  display: grid;
+  gap: 8px;
+}
+
+.client-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.client-meta {
+  margin: 0;
+  color: var(--subtle);
+}
+
+.client-meta.client-note {
+  min-height: 40px;
+  color: var(--text);
+}
+
+.client-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.client-actions button {
+  flex: 1;
+  min-width: 120px;
+}
+
+#client-form #client-form-help {
+  color: var(--subtle);
+  font-size: 0.9rem;
 }
 
 .hidden {

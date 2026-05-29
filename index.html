@@ -12,7 +12,7 @@
         <div class="topbar__title-wrap">
           <p class="eyebrow">ProjectOps</p>
           <h1>1차 프로젝트 운영 화면</h1>
-          <p>등록, 상세 조회, 진행사항 업데이트를 한 곳에서 관리</p>
+          <p>고객사/프로젝트를 함께 한 곳에서 관리</p>
         </div>
         <div class="summary" id="summary-box"></div>
       </header>
@@ -21,6 +21,7 @@
         <aside class="side-nav-wrap">
           <nav class="side-nav" aria-label="프로젝트 메뉴">
             <button type="button" class="nav-btn is-active" data-view="list">프로젝트 목록</button>
+            <button type="button" class="nav-btn" data-view="clients">고객사 관리</button>
           </nav>
         </aside>
 
@@ -45,7 +46,7 @@
           </label>
           <label>
             고객사명
-            <input id="client-name" name="clientName" placeholder="고객사형일 때 필수" />
+            <input id="client-name" name="clientName" list="client-name-options" placeholder="고객사형일 때 필수" />
           </label>
           <label>
             담당자/PM
@@ -214,6 +215,74 @@
           </div>
         </form>
       </section>
+
+      <section class="panel view-panel hidden" data-view-panel="clients">
+        <div class="panel-head panel-head--tight">
+          <div>
+            <h2>고객사 관리</h2>
+            <p class="list-title-note">고객사 마스터를 등록하고 프로젝트 화면에서 자동 제안으로 사용합니다.</p>
+          </div>
+          <button type="button" class="primary" id="open-client-form-btn">+ 고객사 등록</button>
+          <div class="filters">
+            <input id="client-search" type="search" placeholder="고객사명/업종/담당자 검색" />
+            <select id="client-status-filter">
+              <option value="">상태 전체</option>
+              <option>활성</option>
+              <option>휴면</option>
+              <option>해지</option>
+            </select>
+            <select id="client-industry-filter">
+              <option value="">업종 전체</option>
+              <option>IT</option>
+              <option>제조</option>
+              <option>금융</option>
+              <option>교육</option>
+              <option>의료</option>
+              <option>물류</option>
+              <option>기타</option>
+            </select>
+          </div>
+        </div>
+
+        <form id="client-form" class="grid-form hidden">
+          <input id="client-id" name="clientId" type="hidden" />
+          <label>
+            고객사명
+            <input id="client-company-name" name="companyName" required placeholder="예: 한빛시스템" />
+          </label>
+          <label>
+            업종
+            <input id="client-industry" name="industry" placeholder="예: IT" />
+          </label>
+          <label>
+            담당자
+            <input id="client-manager" name="manager" placeholder="예: 이명수" />
+          </label>
+          <label>
+            연락처
+            <input id="client-contact" name="contact" placeholder="예: 02-000-0000" />
+          </label>
+          <label>
+            상태
+            <select id="client-status" name="status" required>
+              <option>활성</option>
+              <option>휴면</option>
+              <option>해지</option>
+            </select>
+          </label>
+          <label class="full">
+            메모
+            <textarea id="client-note" name="note" rows="2" placeholder="비고를 입력하세요."></textarea>
+          </label>
+          <div class="actions full">
+            <button type="submit" class="primary" id="save-client-btn">고객사 저장</button>
+            <button type="button" class="ghost" id="reset-client-form-btn">초기화</button>
+            <span id="client-form-help">등록 모드</span>
+          </div>
+        </form>
+
+        <div class="client-list" id="client-list"></div>
+      </section>
         </div>
       </div>
     </main>
@@ -250,6 +319,26 @@
         <p class="update-progress"></p>
       </article>
     </template>
+
+    <template id="client-card-template">
+      <article class="client-card">
+        <div class="client-card-head">
+          <h3 class="client-title"></h3>
+          <span class="chip"></span>
+        </div>
+        <p class="client-meta client-industry"></p>
+        <p class="client-meta client-manager"></p>
+        <p class="client-meta client-contact"></p>
+        <p class="client-meta client-note"></p>
+        <div class="client-actions">
+          <button type="button" class="ghost client-use-btn">프로젝트에 사용</button>
+          <button type="button" class="ghost client-edit-btn">수정</button>
+          <button type="button" class="ghost danger client-delete-btn">삭제</button>
+        </div>
+      </article>
+    </template>
+
+    <datalist id="client-name-options"></datalist>
 
     <script src="app.js"></script>
   </body>

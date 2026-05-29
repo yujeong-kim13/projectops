@@ -1,12 +1,15 @@
-const STORAGE_KEY = "projectops.projects.v1";
+const PROJECTS_STORAGE_KEY = "projectops.projects.v1";
+const CLIENTS_STORAGE_KEY = "projectops.clients.v1";
 
 const PROJECT_STATUS = ["계획", "진행중", "위험", "완료", "보류"];
+const CLIENT_STATUS = ["활성", "휴면", "해지"];
 const VIEW_TO_PANEL = {
   list: "list",
   create: "create",
   detail: "detail",
   edit: "create",
   update: "update",
+  clients: "clients",
 };
 const VIEW_TO_NAV = {
   list: "list",
@@ -14,6 +17,7 @@ const VIEW_TO_NAV = {
   create: "list",
   edit: "list",
   update: "list",
+  clients: "clients",
 };
 const FORM_MODE = {
   CREATE: "create",
@@ -35,7 +39,7 @@ const elements = {
   projectId: document.getElementById("project-id"),
   name: document.getElementById("project-name"),
   type: document.getElementById("project-type"),
-  clientName: document.getElementById("client-name"),
+  projectClientName: document.getElementById("client-name"),
   pm: document.getElementById("project-pm"),
   members: document.getElementById("project-members"),
   startDate: document.getElementById("start-date"),
@@ -89,6 +93,23 @@ const elements = {
   updateEmpty: document.getElementById("update-empty"),
   updateList: document.getElementById("update-list"),
   updateTemplate: document.getElementById("update-item-template"),
+  clientNameOptions: document.getElementById("client-name-options"),
+  clientList: document.getElementById("client-list"),
+  clientCardTemplate: document.getElementById("client-card-template"),
+  openClientFormBtn: document.getElementById("open-client-form-btn"),
+  clientForm: document.getElementById("client-form"),
+  clientId: document.getElementById("client-id"),
+  clientCompanyName: document.getElementById("client-company-name"),
+  clientIndustry: document.getElementById("client-industry"),
+  clientManager: document.getElementById("client-manager"),
+  clientContact: document.getElementById("client-contact"),
+  clientStatus: document.getElementById("client-status"),
+  clientNote: document.getElementById("client-note"),
+  clientFormHelp: document.getElementById("client-form-help"),
+  resetClientFormBtn: document.getElementById("reset-client-form-btn"),
+  clientSearch: document.getElementById("client-search"),
+  clientStatusFilter: document.getElementById("client-status-filter"),
+  clientIndustryFilter: document.getElementById("client-industry-filter"),
 };
 
 const demoProject = {
@@ -124,14 +145,34 @@ const demoProject = {
   ],
 };
 
+const demoClient = {
+  id: getSafeId(),
+  name: "한빛시스템",
+  industry: "IT",
+  manager: "김유정",
+  contact: "02-0000-1111",
+  status: "활성",
+  note: "기본 고객사 샘플",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
 let projects = loadProjects();
+let clients = loadClients();
 let selectedProjectId = null;
+let selectedClientId = null;
 let currentView = "list";
 let formMode = FORM_MODE.CREATE;
+let clientFormMode = FORM_MODE.CREATE;
 
 if (projects.length === 0) {
   projects = [demoProject];
   persistProjects();
+}
+
+if (clients.length === 0) {
+  clients = [demoClient];
+  persistClients();
 }
 
 initDefaults();
@@ -154,6 +195,16 @@ elements.openEditBtn.addEventListener("click", () => setView("edit"));
 elements.openUpdateBtn.addEventListener("click", () => setView("update"));
 elements.openDetailBtn.addEventListener("click", () => setView("detail"));
 elements.openCreateBtn.addEventListener("click", () => setView("create"));
+elements.clientForm.addEventListener("submit", onSaveClient);
+elements.resetClientFormBtn.addEventListener("click", resetClientForm);
+elements.openClientFormBtn.addEventListener("click", () => {
+  selectedClientId = null;
+  setClientFormMode(FORM_MODE.CREATE);
+  elements.clientForm.classList.remove("hidden");
+});
+elements.clientSearch.addEventListener("input", renderClients);
+elements.clientStatusFilter.addEventListener("change", renderClients);
+elements.clientIndustryFilter.addEventListener("change", renderClients);
 elements.navTabs.forEach((tab) => {
   tab.addEventListener("click", () => setView(tab.dataset.view || "list"));
 });
@@ -163,10 +214,11 @@ function initDefaults() {
   elements.updateDate.value = today;
   syncClientField();
   syncProgressLabel(elements.progress, elements.progressValue);
+  syncClientOptions();
 }
 
 function syncClientField() {
-  elements.clientName.required = elements.type.value === "고객사";
+  elements.projectClientName.required = elements.type.value === "고객사";
 }
 
 function syncProgressLabel(input, target) {
@@ -193,7 +245,7 @@ function onSaveProject(event) {
     id: elements.projectId.value || getNextId(),
     name: elements.name.value.trim(),
     type: elements.type.value,
-    clientName: elements.clientName.value.trim(),
+    clientName: elements.projectClientName.value.trim(),
     pm: elements.pm.value.trim(),
     members: splitCsv(elements.members.value),
     startDate: elements.startDate.value,
@@ -238,6 +290,7 @@ function onSaveProject(event) {
   }
 
   persistProjects();
+  syncClientOptions();
   selectedProjectId = shouldEdit ? formData.id : projects[0].id;
   resetProjectForm();
   renderAll();
@@ -294,7 +347,7 @@ function onDeleteProject() {
     return;
   }
 
-  if (!window.confirm(`\"${target.name}\" 프로젝트를 삭제하시겠습니까?`)) {
+  if (!window.confirm(`"${target.name}" 프로젝트를 삭제하시겠습니까?`)) {
     return;
   }
 
@@ -306,10 +359,100 @@ function onDeleteProject() {
   setView("list");
 }
 
+function onSaveClient(event) {
+  event.preventDefault();
+
+  const clientData = {
+    id: elements.clientId.value || getNextId(),
+    name: elements.clientCompanyName.value.trim(),
+    industry: elements.clientIndustry.value.trim() || "기타",
+    manager: elements.clientManager.value.trim() || "-",
+    contact: elements.clientContact.value.trim() || "-",
+    status: elements.clientStatus.value,
+    note: elements.clientNote.value.trim(),
+    updatedAt: today(),
+  };
+
+  if (!clientData.name) {
+    alert("고객사명은 필수입니다.");
+    return;
+  }
+
+  const isEdit = clientFormMode === FORM_MODE.EDIT;
+  const targetIdx = clients.findIndex((item) => item.id === clientData.id);
+  const shouldEdit = isEdit && targetIdx > -1;
+
+  if (shouldEdit) {
+    clients[targetIdx] = {
+      ...clients[targetIdx],
+      ...clientData,
+      createdAt: clients[targetIdx].createdAt,
+    };
+  } else {
+    clients.unshift({
+      ...clientData,
+      createdAt: today(),
+    });
+  }
+
+  persistClients();
+  syncClientOptions();
+  renderClients();
+  renderSummary();
+  elements.clientForm.reset();
+  selectedClientId = null;
+  setClientFormMode(FORM_MODE.CREATE);
+}
+
+function onDeleteClient(clientId) {
+  const target = clients.find((item) => item.id === clientId);
+  if (!target) {
+    return;
+  }
+
+  const usedProjects = projects.filter((p) => p.type === "고객사" && p.clientName === target.name);
+  if (usedProjects.length > 0) {
+    const confirmed = window.confirm(`\"${target.name}\" 고객사를 삭제하면 연결된 ${usedProjects.length}개 프로젝트에서 고객사명이 비워집니다. 진행하시겠습니까?`);
+    if (!confirmed) {
+      return;
+    }
+
+    projects = projects.map((project) => {
+      if (project.type === "고객사" && project.clientName === target.name) {
+        return {
+          ...project,
+          clientName: "",
+          updatedAt: today(),
+        };
+      }
+      return project;
+    });
+  } else {
+    if (!window.confirm(`\"${target.name}\" 고객사를 삭제하시겠습니까?`)) {
+      return;
+    }
+  }
+
+  clients = clients.filter((item) => item.id !== clientId);
+  persistClients();
+  persistProjects();
+  syncClientOptions();
+  renderClients();
+  renderSummary();
+  renderList();
+
+  if (selectedClientId === clientId) {
+    selectedClientId = null;
+    setClientFormMode(FORM_MODE.CREATE);
+    elements.clientForm.classList.add("hidden");
+  }
+}
+
 function renderAll() {
   renderSummary();
   renderList();
   renderProjectDetail(getSelectedProject());
+  renderClients();
 }
 
 function renderSummary() {
@@ -318,6 +461,7 @@ function renderSummary() {
   const internal = projects.filter((p) => p.type === "사내").length;
   const risk = projects.filter((p) => p.status === "위험").length;
   const totalManmonths = projects.reduce((acc, p) => acc + makeNumber(p.contractManmonths), 0);
+  const activeClient = clients.filter((c) => c.status === "활성").length;
 
   elements.summaryBox.innerHTML = `
     <span>총 프로젝트: ${total}</span>
@@ -325,6 +469,7 @@ function renderSummary() {
     <span>사내: ${internal}</span>
     <span>위험 상태: ${risk}</span>
     <span>계약 맨먼스: ${totalManmonths.toFixed(1)}</span>
+    <span>활성 고객사: ${activeClient}</span>
   `;
 }
 
@@ -471,7 +616,7 @@ function setProjectFormValues(project) {
   elements.projectId.value = project.id;
   elements.name.value = project.name;
   elements.type.value = project.type;
-  elements.clientName.value = project.clientName || "";
+  elements.projectClientName.value = project.clientName || "";
   elements.pm.value = project.pm;
   elements.members.value = (project.members || []).join(", ");
   elements.startDate.value = project.startDate;
@@ -524,6 +669,120 @@ function syncUpdateFormState() {
   }
 }
 
+function renderClients() {
+  const searchText = (elements.clientSearch.value || "").trim().toLowerCase();
+  const statusFilter = elements.clientStatusFilter.value;
+  const industryFilter = elements.clientIndustryFilter.value;
+
+  const filtered = clients.filter((client) => {
+    if (statusFilter && client.status !== statusFilter) {
+      return false;
+    }
+    if (industryFilter && client.industry !== industryFilter) {
+      return false;
+    }
+    if (searchText) {
+      const searchable = [client.name, client.industry, client.manager, client.contact, client.note]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(searchText)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  elements.clientList.innerHTML = "";
+
+  if (filtered.length === 0) {
+    elements.clientList.innerHTML = "<p class=\"empty-state\">조건에 맞는 고객사가 없습니다.</p>";
+    return;
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+  });
+
+  for (const client of sorted) {
+    const node = elements.clientCardTemplate.content.firstElementChild.cloneNode(true);
+    node.querySelector(".client-title").textContent = client.name;
+    node.querySelectorAll(".chip")[0].textContent = client.status;
+    node.querySelector(".client-industry").textContent = `업종: ${client.industry || "-"}`;
+    node.querySelector(".client-manager").textContent = `담당자: ${client.manager || "-"}`;
+    node.querySelector(".client-contact").textContent = `연락처: ${client.contact || "-"}`;
+    node.querySelector(".client-note").textContent = client.note || "-";
+
+    const useBtn = node.querySelector(".client-use-btn");
+    const editBtn = node.querySelector(".client-edit-btn");
+    const deleteBtn = node.querySelector(".client-delete-btn");
+
+    useBtn.addEventListener("click", () => {
+      elements.type.value = "고객사";
+      elements.projectClientName.value = client.name;
+      syncClientField();
+      setView("create");
+    });
+
+    editBtn.addEventListener("click", () => {
+      selectedClientId = client.id;
+      fillClientFormForEdit(client);
+    });
+
+    deleteBtn.addEventListener("click", () => {
+      onDeleteClient(client.id);
+    });
+
+    elements.clientList.appendChild(node);
+  }
+}
+
+function fillClientFormForEdit(client) {
+  if (!client) {
+    return;
+  }
+
+  selectedClientId = client.id;
+  setClientFormValues(client);
+  setClientFormMode(FORM_MODE.EDIT);
+  elements.clientForm.classList.remove("hidden");
+}
+
+function setClientFormValues(client) {
+  elements.clientId.value = client.id;
+  elements.clientCompanyName.value = client.name;
+  elements.clientIndustry.value = client.industry || "";
+  elements.clientManager.value = client.manager || "";
+  elements.clientContact.value = client.contact || "";
+  elements.clientStatus.value = client.status;
+  elements.clientNote.value = client.note || "";
+}
+
+function setClientFormMode(mode) {
+  clientFormMode = mode;
+  const isEdit = mode === FORM_MODE.EDIT;
+  elements.clientFormHelp.textContent = isEdit ? "고객사 수정 모드" : "고객사 등록 모드";
+}
+
+function resetClientForm() {
+  elements.clientForm.reset();
+  elements.clientId.value = "";
+  setClientFormMode(FORM_MODE.CREATE);
+  selectedClientId = null;
+}
+
+function syncClientOptions() {
+  if (!elements.clientNameOptions) {
+    return;
+  }
+  const candidates = [...clients]
+    .filter((client) => client.status === "활성")
+    .sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
+
+  elements.clientNameOptions.innerHTML = candidates
+    .map((client) => `<option value="${client.name}">`)
+    .join("");
+}
+
 function setView(view) {
   const resolvedPanel = VIEW_TO_PANEL[view] || "list";
   const navView = VIEW_TO_NAV[view] || "list";
@@ -545,6 +804,12 @@ function setView(view) {
     elements.projectId.value = "";
     elements.form.reset();
     initDefaults();
+  }
+
+  if (view === "clients") {
+    elements.clientForm.classList.add("hidden");
+    setClientFormMode(FORM_MODE.CREATE);
+    renderClients();
   }
 
   if (view === "edit") {
@@ -605,11 +870,15 @@ function splitCsv(value) {
 }
 
 function persistProjects() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+}
+
+function persistClients() {
+  localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(clients));
 }
 
 function loadProjects() {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
   if (!raw) {
     return [];
   }
@@ -628,6 +897,28 @@ function loadProjects() {
       }));
   } catch {
     console.warn("Failed to parse project data from localStorage. Resetting saved data.");
+    return [];
+  }
+}
+
+function loadClients() {
+  const raw = localStorage.getItem(CLIENTS_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        ...item,
+        status: CLIENT_STATUS.includes(item.status) ? item.status : "활성",
+      }));
+  } catch {
+    console.warn("Failed to parse client data from localStorage. Resetting saved data.");
     return [];
   }
 }
