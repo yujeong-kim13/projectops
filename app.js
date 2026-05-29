@@ -209,11 +209,27 @@ elements.clientSearch.addEventListener("input", renderClients);
 elements.clientStatusFilter.addEventListener("change", renderClients);
 elements.clientIndustryFilter.addEventListener("change", renderClients);
 elements.navTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    const requestedView = normalizeView(tab.dataset.view || "list");
-    setView(requestedView);
-  });
+  tab.addEventListener("click", handleNavClick);
 });
+const sideNav = document.querySelector(".side-nav");
+if (sideNav) {
+  sideNav.addEventListener("click", (event) => {
+    const target = event.target.closest(".nav-btn");
+    if (!target) {
+      return;
+    }
+    handleNavClick({ currentTarget: target });
+  });
+}
+
+function handleNavClick(event) {
+  const tab = event.currentTarget;
+  if (!tab) {
+    return;
+  }
+  const requestedView = normalizeView(tab.dataset.view || "list");
+  setView(requestedView);
+}
 
 function initDefaults() {
   const today = new Date().toISOString().slice(0, 10);
@@ -854,13 +870,23 @@ function setView(view) {
     syncUpdateFormState();
   }
 
-  if (view === "list") {
+  if (normalizedView === "list") {
     renderList();
   }
 }
 
 function normalizeView(view) {
-  return VIEW_ALIASES[view] || view;
+  const normalized = String(view || "").trim().toLowerCase();
+  if (!normalized) {
+    return "list";
+  }
+  if (VIEW_ALIASES[normalized]) {
+    return VIEW_ALIASES[normalized];
+  }
+  if (normalized.includes("client")) {
+    return "clients";
+  }
+  return normalized;
 }
 
 function getSelectedProject() {
