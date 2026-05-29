@@ -96,7 +96,6 @@ const elements = {
   updateEmpty: document.getElementById("update-empty"),
   updateList: document.getElementById("update-list"),
   updateTemplate: document.getElementById("update-item-template"),
-  clientNameOptions: document.getElementById("client-name-options"),
   clientList: document.getElementById("client-list"),
   clientCardTemplate: document.getElementById("client-card-template"),
   openClientFormBtn: document.getElementById("open-client-form-btn"),
@@ -240,7 +239,12 @@ function initDefaults() {
 }
 
 function syncClientField() {
-  elements.projectClientName.required = elements.type.value === "고객사";
+  const isClientProject = elements.type.value === "고객사";
+  elements.projectClientName.required = isClientProject;
+  elements.projectClientName.disabled = !isClientProject;
+  if (!isClientProject) {
+    elements.projectClientName.value = "";
+  }
 }
 
 function syncProgressLabel(input, target) {
@@ -793,16 +797,21 @@ function resetClientForm() {
 }
 
 function syncClientOptions() {
-  if (!elements.clientNameOptions) {
+  if (!elements.projectClientName) {
     return;
   }
+  const selectedValue = elements.projectClientName.value;
   const candidates = [...clients]
-    .filter((client) => client.status === "활성")
     .sort((a, b) => a.name.localeCompare(b.name, "ko-KR"));
 
-  elements.clientNameOptions.innerHTML = candidates
-    .map((client) => `<option value="${client.name}">`)
-    .join("");
+  elements.projectClientName.innerHTML = [
+    "<option value=\"\">고객사를 선택하세요</option>",
+    ...candidates.map((client) => `<option value="${client.name}">${client.name}</option>`),
+  ].join("");
+  if (selectedValue && candidates.some((client) => client.name === selectedValue)) {
+    elements.projectClientName.value = selectedValue;
+  }
+  syncClientField();
 }
 
 function setView(view) {
