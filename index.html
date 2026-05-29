@@ -8,20 +8,13 @@
   </head>
   <body>
     <main class="container">
-      <header class="topbar">
-        <div class="topbar__title-wrap">
-          <p class="eyebrow">ProjectOps</p>
-          <h1>1차 프로젝트 운영 화면</h1>
-          <p>고객사/프로젝트를 함께 한 곳에서 관리</p>
-        </div>
-        <div class="summary" id="summary-box"></div>
-      </header>
-
       <div class="app-shell">
         <aside class="side-nav-wrap">
           <nav class="side-nav" aria-label="프로젝트 메뉴">
-            <button type="button" class="nav-btn is-active" data-view="list">프로젝트 목록</button>
-            <button type="button" class="nav-btn" data-view="clients">고객사 관리</button>
+            <div class="brand">ProjectOps</div>
+            <button type="button" class="nav-btn is-active" data-view="list">프로젝트</button>
+            <button type="button" class="nav-btn" data-view="dashboard">대시보드</button>
+            <button type="button" class="nav-btn" data-view="clients">고객사</button>
           </nav>
         </aside>
 
@@ -29,8 +22,10 @@
       <section class="panel view-panel hidden" data-view-panel="create">
         <div class="panel-head">
           <h2 id="project-form-title">프로젝트 등록</h2>
+          <span id="form-help" class="mode-badge">등록 모드</span>
           <button type="button" class="ghost" id="reset-form-btn">초기화</button>
         </div>
+        <p class="list-title-note">신규 프로젝트의 기본 정보를 입력합니다. 실적 맨먼스는 진행 후 자동 집계됩니다.</p>
         <form id="project-form" class="grid-form">
           <input id="project-id" name="projectId" type="hidden" />
           <label>
@@ -74,13 +69,13 @@
             계약/확정 맨먼스
             <input id="contract-manmonths" name="contractManmonths" type="number" min="0" step="0.5" required />
           </label>
-          <label>
+          <label class="manmonth-advanced" id="used-manmonths-wrap">
             사용 맨먼스
-            <input id="used-manmonths" name="usedManmonths" type="number" min="0" step="0.5" required />
+            <input id="used-manmonths" name="usedManmonths" type="number" min="0" step="0.5" />
           </label>
-          <label>
+          <label class="manmonth-advanced" id="expected-manmonths-wrap">
             예상 맨먼스
-            <input id="expected-manmonths" name="expectedManmonths" type="number" min="0" step="0.5" required />
+            <input id="expected-manmonths" name="expectedManmonths" type="number" min="0" step="0.5" />
           </label>
           <label>
             진행률
@@ -109,7 +104,6 @@
           </label>
           <div class="actions full">
             <button type="submit" class="primary" id="save-btn">프로젝트 저장</button>
-            <span id="form-help">등록 모드</span>
           </div>
         </form>
       </section>
@@ -117,8 +111,8 @@
       <section class="panel view-panel" data-view-panel="list">
         <div class="panel-head panel-head--tight">
           <div>
-            <h2>프로젝트 목록</h2>
-            <p class="list-title-note">프로젝트 검색, 유형/상태 필터로 목록을 중심으로 관리합니다.</p>
+            <h2>프로젝트 운영</h2>
+            <p class="list-title-note">고객사·프로젝트를 한 곳에서 관리</p>
           </div>
           <button type="button" class="primary" id="open-create-btn">+ 프로젝트 등록</button>
           <div class="filters">
@@ -147,7 +141,7 @@
           <div class="actions">
             <button type="button" id="open-edit-btn" class="ghost">수정 화면 열기</button>
             <button type="button" id="open-update-btn" class="primary">진행사항 업데이트</button>
-            <button type="button" id="delete-project-btn" class="ghost danger">선택 프로젝트 삭제</button>
+            <button type="button" id="delete-project-btn" class="ghost icon-btn" aria-label="프로젝트 삭제">🗑</button>
           </div>
         </div>
         <div id="project-detail-empty" class="empty-state">목록에서 프로젝트를 선택하면 상세 정보를 확인하고 진행사항을 기록할 수 있습니다.</div>
@@ -183,6 +177,7 @@
             <button type="button" id="open-detail-btn" class="ghost">상세 화면</button>
           </div>
         </div>
+        <p class="list-title-note" id="update-subtitle"></p>
         <div id="update-empty" class="empty-state">프로젝트를 선택하면 진행사항 업데이트를 등록할 수 있습니다.</div>
         <form id="update-form" class="grid-form grid-form--small hidden">
           <label>
@@ -212,6 +207,11 @@
               <span id="update-progress-value">0%</span>
             </div>
           </label>
+          <div class="full progress-delta-box">
+            <p class="progress-delta-title">현재 진척률 대비 변경값</p>
+            <p class="progress-delta-value"><span id="progress-before">0%</span> → <span id="progress-after">0%</span> <b id="progress-delta">(+0%)</b></p>
+            <p class="progress-delta-note" id="progress-delta-note">변동 없음</p>
+          </div>
           <div class="actions full">
             <button type="submit" class="primary">진행사항 저장</button>
           </div>
@@ -331,11 +331,11 @@
         <p class="client-meta client-industry"></p>
         <p class="client-meta client-manager"></p>
         <p class="client-meta client-contact"></p>
+        <p class="client-meta client-project-count"></p>
         <p class="client-meta client-note"></p>
         <div class="client-actions">
-          <button type="button" class="ghost client-use-btn">프로젝트에 사용</button>
           <button type="button" class="ghost client-edit-btn">수정</button>
-          <button type="button" class="ghost danger client-delete-btn">삭제</button>
+          <button type="button" class="ghost icon-btn client-delete-btn" aria-label="고객사 삭제">🗑</button>
         </div>
       </article>
     </template>

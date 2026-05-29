@@ -21,6 +21,7 @@ const VIEW_TO_NAV = {
 };
 const VIEW_ALIASES = {
   client: "clients",
+  dashboard: "list",
 };
 const FORM_MODE = {
   CREATE: "create",
@@ -51,6 +52,8 @@ const elements = {
   contractManmonths: document.getElementById("contract-manmonths"),
   usedManmonths: document.getElementById("used-manmonths"),
   expectedManmonths: document.getElementById("expected-manmonths"),
+  usedManmonthsWrap: document.getElementById("used-manmonths-wrap"),
+  expectedManmonthsWrap: document.getElementById("expected-manmonths-wrap"),
   progress: document.getElementById("project-progress"),
   progressValue: document.getElementById("progress-value"),
   status: document.getElementById("project-status"),
@@ -93,6 +96,11 @@ const elements = {
   updateRisk: document.getElementById("update-risk"),
   updateProgress: document.getElementById("update-progress"),
   updateProgressValue: document.getElementById("update-progress-value"),
+  updateSubtitle: document.getElementById("update-subtitle"),
+  progressBefore: document.getElementById("progress-before"),
+  progressAfter: document.getElementById("progress-after"),
+  progressDelta: document.getElementById("progress-delta"),
+  progressDeltaNote: document.getElementById("progress-delta-note"),
   updateEmpty: document.getElementById("update-empty"),
   updateList: document.getElementById("update-list"),
   updateTemplate: document.getElementById("update-item-template"),
@@ -185,9 +193,7 @@ elements.form.addEventListener("submit", onSaveProject);
 elements.resetFormBtn.addEventListener("click", resetProjectForm);
 elements.type.addEventListener("change", syncClientField);
 elements.progress.addEventListener("input", () => syncProgressLabel(elements.progress, elements.progressValue));
-elements.updateProgress.addEventListener("input", () => {
-  elements.updateProgressValue.textContent = `${elements.updateProgress.value}%`;
-});
+elements.updateProgress.addEventListener("input", syncUpdateProgressUI);
 elements.typeFilter.addEventListener("change", renderList);
 elements.projectSearch.addEventListener("input", renderList);
 elements.statusFilter.addEventListener("change", renderList);
@@ -289,6 +295,10 @@ function onSaveProject(event) {
 
   if (!formData.name || !formData.pm || !formData.startDate || !formData.endDate) {
     return;
+  }
+  if (formMode === FORM_MODE.CREATE) {
+    formData.usedManmonths = 0;
+    formData.expectedManmonths = formData.contractManmonths;
   }
 
   if (formData.type === "고객사" && !formData.clientName) {
@@ -482,6 +492,9 @@ function renderAll() {
 }
 
 function renderSummary() {
+  if (!elements.summaryBox) {
+    return;
+  }
   const total = projects.length;
   const client = projects.filter((p) => p.type === "고객사").length;
   const internal = projects.filter((p) => p.type === "사내").length;
@@ -600,6 +613,7 @@ function renderProjectDetail(project) {
 
   elements.updateAuthor.value = project.pm;
   elements.updateDate.value = new Date().toISOString().slice(0, 10);
+  elements.updateSubtitle.textContent = `${project.name} · 현재 진척률 ${project.progress}%`;
   elements.openEditBtn.disabled = false;
   elements.openUpdateBtn.disabled = false;
 
@@ -615,14 +629,19 @@ function renderUpdates(project) {
     return;
   }
 
-  for (const update of project.updates) {
+  for (let idx = 0; idx < project.updates.length; idx += 1) {
+    const update = project.updates[idx];
+    const previous = project.updates[idx + 1];
+    const beforeProgress = previous ? Number(previous.progress) : 0;
+    const delta = Number(update.progress) - beforeProgress;
+    const deltaLabel = `${delta > 0 ? "+" : ""}${delta}%p`;
     const item = elements.updateTemplate.content.firstElementChild.cloneNode(true);
     item.querySelector(".update-title").textContent = `${update.author} / 진척률 ${update.progress}%`;
     item.querySelector(".update-date").textContent = formatDate(update.date);
     item.querySelector(".update-content").textContent = `이번 내용: ${update.content}`;
     item.querySelector(".update-next").textContent = `다음 계획: ${update.nextPlan || "-"}`;
     item.querySelector(".update-risk").textContent = `이슈/리스크: ${update.riskIssue || "-"}`;
-    item.querySelector(".update-progress").textContent = `변경 반영 진척률: ${update.progress}%`;
+    item.querySelector(".update-progress").textContent = `진척률 변화: ${beforeProgress}% → ${update.progress}% (${deltaLabel})`;
     elements.updateList.appendChild(item);
   }
 }
@@ -665,6 +684,10 @@ function setFormMode(mode) {
   elements.projectFormTitle.textContent = isEdit ? "프로젝트 수정" : "프로젝트 등록";
   elements.formHelp.textContent = isEdit ? "수정 모드" : "등록 모드";
   elements.saveBtn.textContent = isEdit ? "수정 저장" : "프로젝트 저장";
+  elements.usedManmonthsWrap.classList.toggle("hidden", !isEdit);
+  elements.expectedManmonthsWrap.classList.toggle("hidden", !isEdit);
+  elements.usedManmonths.required = isEdit;
+  elements.expectedManmonths.required = isEdit;
 }
 
 function resetProjectForm() {
@@ -688,11 +711,25 @@ function syncUpdateFormState() {
   elements.updateEmpty.classList.toggle("hidden", hasProject);
   elements.updateForm.classList.toggle("hidden", !hasProject);
   if (hasProject) {
+    const project = getSelectedProject();
     elements.updateForm.reset();
     elements.updateDate.value = new Date().toISOString().slice(0, 10);
-    elements.updateAuthor.value = getSelectedProject()?.pm || "";
-    syncProgressLabel(elements.updateProgress, elements.updateProgressValue);
+    elements.updateAuthor.value = project?.pm || "";
+    elements.updateProgress.value = String(project?.progress || 0);
+    syncUpdateProgressUI();
   }
+}
+
+function syncUpdateProgressUI() {
+  const project = getSelectedProject();
+  const before = project ? Number(project.progress) : 0;
+  const after = Number(elements.updateProgress.value || 0);
+  const delta = after - before;
+  elements.updateProgressValue.textContent = `${after}%`;
+  elements.progressBefore.textContent = `${before}%`;
+  elements.progressAfter.textContent = `${after}%`;
+  elements.progressDelta.textContent = `(${delta > 0 ? "+" : ""}${delta}%)`;
+  elements.progressDeltaNote.textContent = delta === 0 ? "변동 없음" : delta > 0 ? "진행률 증가" : "진행률 감소";
 }
 
 function renderClients() {
@@ -737,17 +774,11 @@ function renderClients() {
     node.querySelector(".client-manager").textContent = `담당자: ${client.manager || "-"}`;
     node.querySelector(".client-contact").textContent = `연락처: ${client.contact || "-"}`;
     node.querySelector(".client-note").textContent = client.note || "-";
+    const linkedProjectCount = projects.filter((project) => project.type === "고객사" && project.clientName === client.name).length;
+    node.querySelector(".client-project-count").textContent = `연결 프로젝트 ${linkedProjectCount}건`;
 
-    const useBtn = node.querySelector(".client-use-btn");
     const editBtn = node.querySelector(".client-edit-btn");
     const deleteBtn = node.querySelector(".client-delete-btn");
-
-    useBtn.addEventListener("click", () => {
-      elements.type.value = "고객사";
-      elements.projectClientName.value = client.name;
-      syncClientField();
-      setView("create");
-    });
 
     editBtn.addEventListener("click", () => {
       selectedClientId = client.id;
