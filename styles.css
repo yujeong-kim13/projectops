@@ -51,6 +51,8 @@ body {
 .side-nav {
   display: grid;
   gap: 8px;
+  align-content: start;
+  grid-auto-rows: min-content;
   background: #f7f8fa;
   padding: 12px;
   min-height: calc(100vh - 60px);
