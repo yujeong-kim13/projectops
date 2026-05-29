@@ -819,6 +819,7 @@ function setClientFormMode(mode) {
   clientFormMode = mode;
   const isEdit = mode === FORM_MODE.EDIT;
   elements.clientFormHelp.textContent = isEdit ? "고객사 수정 모드" : "고객사 등록 모드";
+  syncClientListVisibility();
 }
 
 function resetClientForm() {
@@ -826,6 +827,12 @@ function resetClientForm() {
   elements.clientId.value = "";
   setClientFormMode(FORM_MODE.CREATE);
   selectedClientId = null;
+}
+
+function syncClientListVisibility() {
+  const isClientView = currentView === "clients";
+  const isEdit = clientFormMode === FORM_MODE.EDIT;
+  elements.clientList.classList.toggle("hidden", isClientView && isEdit);
 }
 
 function syncClientOptions() {
@@ -874,6 +881,7 @@ function setView(view) {
     elements.clientForm.classList.add("hidden");
     setClientFormMode(FORM_MODE.CREATE);
     renderClients();
+    syncClientListVisibility();
   }
 
   if (normalizedView === "edit") {

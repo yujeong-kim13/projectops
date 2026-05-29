@@ -12,9 +12,9 @@
         <aside class="side-nav-wrap">
           <nav class="side-nav" aria-label="프로젝트 메뉴">
             <div class="brand">ProjectOps</div>
-            <button type="button" class="nav-btn is-active" data-view="list">프로젝트</button>
-            <button type="button" class="nav-btn" data-view="dashboard">대시보드</button>
-            <button type="button" class="nav-btn" data-view="clients">고객사</button>
+            <button type="button" class="nav-btn is-active" data-view="list"><span class="nav-icon" aria-hidden="true">📁</span>프로젝트</button>
+            <button type="button" class="nav-btn" data-view="dashboard"><span class="nav-icon" aria-hidden="true">📊</span>대시보드</button>
+            <button type="button" class="nav-btn" data-view="clients"><span class="nav-icon" aria-hidden="true">🏢</span>고객사</button>
           </nav>
         </aside>
 
@@ -141,7 +141,7 @@
           <div class="actions">
             <button type="button" id="open-edit-btn" class="ghost">수정 화면 열기</button>
             <button type="button" id="open-update-btn" class="primary">진행사항 업데이트</button>
-            <button type="button" id="delete-project-btn" class="ghost icon-btn" aria-label="프로젝트 삭제">🗑</button>
+            <button type="button" id="delete-project-btn" class="ghost icon-btn delete-btn" aria-label="프로젝트 삭제"><span aria-hidden="true">🗑</span><span>삭제</span></button>
           </div>
         </div>
         <div id="project-detail-empty" class="empty-state">목록에서 프로젝트를 선택하면 상세 정보를 확인하고 진행사항을 기록할 수 있습니다.</div>
@@ -335,7 +335,7 @@
         <p class="client-meta client-note"></p>
         <div class="client-actions">
           <button type="button" class="ghost client-edit-btn">수정</button>
-          <button type="button" class="ghost icon-btn client-delete-btn" aria-label="고객사 삭제">🗑</button>
+          <button type="button" class="ghost icon-btn delete-btn client-delete-btn" aria-label="고객사 삭제"><span aria-hidden="true">🗑</span><span>삭제</span></button>
         </div>
       </article>
     </template>

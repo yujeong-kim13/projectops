@@ -72,11 +72,18 @@ body {
   border-radius: 8px;
   padding: 10px 12px;
   text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nav-btn.is-active {
   background: #dce9f8;
   color: #163f6a;
+}
+
+.nav-icon {
+  font-size: 14px;
 }
 
 .panel {
@@ -197,11 +204,20 @@ button:hover {
 }
 
 .icon-btn {
-  width: 38px;
   min-width: 38px;
   padding: 8px;
   background: #fff;
   border: 1px solid #d0d6df;
+}
+
+.delete-btn {
+  color: #a32020;
+  border-color: #d8b3b3;
+  background: #fff8f8;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .actions {
