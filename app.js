@@ -5,6 +5,7 @@ const PROJECT_STATUS = ["계획", "진행중", "위험", "완료", "보류"];
 const CLIENT_STATUS = ["활성", "휴면", "해지"];
 const VIEW_TO_PANEL = {
   list: "list",
+  dashboard: "dashboard",
   create: "create",
   detail: "detail",
   edit: "create",
@@ -21,7 +22,6 @@ const VIEW_TO_NAV = {
 };
 const VIEW_ALIASES = {
   client: "clients",
-  dashboard: "list",
 };
 const FORM_MODE = {
   CREATE: "create",
@@ -120,6 +120,9 @@ const elements = {
   clientSearch: document.getElementById("client-search"),
   clientStatusFilter: document.getElementById("client-status-filter"),
   clientIndustryFilter: document.getElementById("client-industry-filter"),
+  dashboardStatusList: document.getElementById("dashboard-status-list"),
+  dashboardRiskList: document.getElementById("dashboard-risk-list"),
+  dashboardRecentUpdates: document.getElementById("dashboard-recent-updates"),
 };
 
 const demoProject = {
@@ -486,6 +489,7 @@ function onDeleteClient(clientId) {
 
 function renderAll() {
   renderSummary();
+  renderDashboard();
   renderList();
   renderProjectDetail(getSelectedProject());
   renderClients();
@@ -511,6 +515,93 @@ function renderSummary() {
     <span>계약 맨먼스: ${totalManmonths.toFixed(1)}</span>
     <span>활성 고객사: ${activeClient}</span>
   `;
+}
+
+function renderDashboard() {
+  renderStatusDistribution();
+  renderRiskProjects();
+  renderRecentUpdates();
+}
+
+function renderStatusDistribution() {
+  if (!elements.dashboardStatusList) {
+    return;
+  }
+  const total = projects.length;
+  const counts = PROJECT_STATUS.map((status) => ({
+    status,
+    count: projects.filter((project) => project.status === status).length,
+  }));
+
+  elements.dashboardStatusList.innerHTML = counts
+    .map((item) => {
+      const ratio = total > 0 ? Math.round((item.count / total) * 100) : 0;
+      return `
+        <div class="dashboard-status-row">
+          <div class="dashboard-status-head">
+            <span>${item.status}</span>
+            <b>${item.count}건 (${ratio}%)</b>
+          </div>
+          <div class="progress-bar" role="img" aria-label="${item.status} ${item.count}건">
+            <span style="width: ${ratio}%;"></span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderRiskProjects() {
+  if (!elements.dashboardRiskList) {
+    return;
+  }
+  const riskProjects = projects
+    .filter((project) => project.status === "위험" || (project.risk || "").trim())
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+    .slice(0, 5);
+
+  if (riskProjects.length === 0) {
+    elements.dashboardRiskList.innerHTML = "<li class=\"empty-state\">현재 표시할 리스크가 없습니다.</li>";
+    return;
+  }
+
+  elements.dashboardRiskList.innerHTML = riskProjects
+    .map((project) => {
+      const riskText = (project.risk || "").trim() || "리스크 메모 없음";
+      return `<li><strong>${project.name}</strong><span>${riskText}</span></li>`;
+    })
+    .join("");
+}
+
+function renderRecentUpdates() {
+  if (!elements.dashboardRecentUpdates) {
+    return;
+  }
+  const updates = projects
+    .flatMap((project) => {
+      return (project.updates || []).map((update) => ({
+        projectName: project.name,
+        date: update.date,
+        author: update.author,
+        content: update.content,
+        createdAt: update.createdAt,
+      }));
+    })
+    .sort((a, b) => {
+      return new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime();
+    })
+    .slice(0, 6);
+
+  if (updates.length === 0) {
+    elements.dashboardRecentUpdates.innerHTML = "<li class=\"empty-state\">최근 업데이트가 없습니다.</li>";
+    return;
+  }
+
+  elements.dashboardRecentUpdates.innerHTML = updates
+    .map((update) => {
+      return `<li><strong>${update.projectName}</strong><span>${formatDate(update.date)} · ${update.author}</span><p>${update.content || "-"}</p></li>`;
+    })
+    .join("");
 }
 
 function renderList() {
@@ -921,6 +1012,11 @@ function setView(view) {
 
   if (normalizedView === "list") {
     renderList();
+  }
+
+  if (normalizedView === "dashboard") {
+    renderSummary();
+    renderDashboard();
   }
 }
 
